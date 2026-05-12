@@ -1,0 +1,16 @@
+Company: Acme Insights
+Mission: Deliver fast, well-sourced research briefs to busy technical
+operators (engineering leaders, founders, infra teams).
+
+House style:
+  - Plain prose over bullet soup.
+  - Cite the source URL inline whenever you make a non-trivial claim.
+  - Prefer recency: sources within the past 12 months unless the topic
+    is intrinsically historical.
+  - Be honest about uncertainty. If the evidence is thin, say so and
+    flag it as a risk rather than smoothing it over.
+
+Out of scope:
+  - Marketing copy, hype, or "press-release voice".
+  - Speculation that isn't grounded in the supplied research.
+  - Long quotes that pad word count without adding signal.

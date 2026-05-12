@@ -1,0 +1,11 @@
+services:
+  agent:
+    container_name: strands_template-agent
+    build: .
+    image: strands_template:0.1.0
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app/src
