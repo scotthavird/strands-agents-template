@@ -1,0 +1,93 @@
+# Strands Agents Template — Docker-First Development Rules
+
+## 🐳 Core constraint
+
+**Everything runs inside the Docker container.** Never suggest invoking
+Python, pip, uv, pytest, or the package's CLI directly on the host.
+
+## ✅ Correct patterns
+
+```bash
+# Run the sequential workflow (default topic = OpenCV)
+docker compose run --rm agent python -m strands_template.main
+
+# Run with a custom topic
+docker compose run --rm agent python -m strands_template.main "Edge AI in 2026"
+
+# Run the Graph variant
+docker compose run --rm agent python examples/graph/research_graph.py
+
+# Run the Swarm variant
+docker compose run --rm agent python examples/swarm/research_swarm.py
+
+# Run the MCP example
+docker compose run --rm agent python examples/mcp/stdio_mcp_example.py
+
+# Run the interactive demo
+docker compose run --rm agent python demo.py
+
+# Run a specific scripted example
+docker compose run --rm agent python examples/business_analysis_example.py
+
+# Run tests
+docker compose run --rm agent pytest
+
+# Integration tests (hits a real LLM)
+RUN_INTEGRATION=1 docker compose run --rm agent pytest
+
+# Interactive REPL with file-backed sessions + sliding-window memory
+docker compose run --rm agent strands-chat my-session-id
+
+# Rebuild after dependency changes
+docker compose build
+
+# Interactive shell for debugging
+docker compose run --rm agent bash
+```
+
+## ❌ Never suggest
+
+```bash
+python demo.py                       # ❌ host Python
+pip install <pkg>                    # ❌ host pip
+python -m strands_template.main      # ❌ host module exec
+pytest                               # ❌ host pytest
+./setup.sh                           # ⚠️  host bash is OK ONLY for the
+                                     #     project-rename script — that's
+                                     #     its only job and it's a one-shot.
+```
+
+## Development workflow
+
+1. **Edit code** on the host (the project mounts `.:/app`).
+2. **Add a Python dep**: edit `pyproject.toml` → `docker compose build` → run.
+3. **Add a system dep**: edit `Dockerfile` → `docker compose build` → run.
+4. **Add a service** (postgres, redis, qdrant): edit `docker-compose.yml`.
+
+## File layout (where to add new things)
+
+| You're adding… | …put it here |
+|---|---|
+| A new agent or role | `src/strands_template/config/agents.yaml` + wire in `agents.py` |
+| A new task / prompt | `src/strands_template/config/tasks.yaml` |
+| A custom tool (function-style) | `src/strands_template/tools/custom_tool.py` (`@tool`) |
+| A custom tool (class-style) | new file in `src/strands_template/tools/` + add to `__init__.py` |
+| Background context for the agents | `knowledge/<your_file>.txt` |
+| A Pydantic output schema | `src/strands_template/schemas.py` |
+| A guardrail | `src/strands_template/schemas.py` (function) |
+| A new orchestration topology | new file under `examples/{graph,swarm}/` |
+| An MCP integration | new file under `examples/mcp/` |
+| Tests | `tests/test_<thing>.py` (gate integration tests with `RUN_INTEGRATION=1`) |
+
+## Code review checklist
+
+- [ ] All Python execution uses `docker compose run --rm agent …`.
+- [ ] No new dependencies without a `docker compose build` step in the docs.
+- [ ] New tools registered in `tools/__init__.py` and wired into an agent in `agents.py`.
+- [ ] Anything that hits a real LLM in tests is gated by `pytest.mark.integration` and an env var.
+- [ ] No secrets committed — use `.env`, never hard-code.
+
+## Golden rule
+
+If it touches Python, Strands, or this project's code: it runs in the
+container. The host is for editing files and running git, period.

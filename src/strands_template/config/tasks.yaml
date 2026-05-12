@@ -1,0 +1,28 @@
+research_task:
+  description: >
+    Research the latest developments around "{topic}" in {current_year}.
+    Use web search and direct URL fetches to gather at least 5 independent,
+    well-sourced findings. Quote evidence and cite the source URL inline.
+  expected_output: >
+    A long-form markdown brief with at least 5 distinct findings, each
+    with a one-sentence claim, a short evidence quote, and the source URL.
+
+analysis_task:
+  description: >
+    Convert the upstream research brief into a Pydantic AnalysisReport
+    structured as: topic, summary (3-5 sentences), key_findings (3-10
+    items, each a Finding with claim/evidence/source), risks (bullet list),
+    next_steps (bullet list). Drop any claim not supported by the brief.
+  expected_output: >
+    A valid AnalysisReport (Pydantic JSON) with at least 3 findings and
+    no fabricated sources.
+
+report_task:
+  description: >
+    Produce a publication-quality markdown report consuming both the raw
+    research brief and the structured analyst report. Use the section
+    structure: Summary, Key Findings, Risks & Open Questions, Next Steps,
+    Sources. Reference source URLs in Key Findings.
+  expected_output: >
+    A markdown document with at least 800 characters and at least three
+    `##` section headers. Saved to report.md by the workflow.

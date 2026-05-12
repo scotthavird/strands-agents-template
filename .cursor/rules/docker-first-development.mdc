@@ -1,0 +1,255 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Strands Agents Template - Docker-First Development Rules
+
+## 🐳 DOCKER-FIRST CONSTRAINT
+**CRITICAL**: Everything MUST run inside Docker containers via Docker Compose.
+Never suggest running Python scripts, pip installs, or any commands directly on the host system.
+
+## 📋 Core Principles
+
+### 1. Container-Only Execution
+- ALL Python scripts must be executed via `docker compose run` or `docker compose exec`
+- ALL dependency installations must happen in Dockerfile or during container build
+- ALL development, testing, and execution happens inside containers
+- NO direct host system Python execution allowed
+
+### 2. Docker Compose Commands
+**Correct patterns**:
+```bash
+# Run the sequential workflow
+docker compose run --rm agent python -m strands_template.main
+
+# Run with a topic
+docker compose run --rm agent python -m strands_template.main "Edge AI in 2026"
+
+# Multi-agent topology variants
+docker compose run --rm agent python examples/graph/research_graph.py
+docker compose run --rm agent python examples/swarm/research_swarm.py
+
+# MCP integration
+docker compose run --rm agent python examples/mcp/stdio_mcp_example.py
+
+# Interactive demo / REPL
+docker compose run --rm agent python demo.py
+docker compose run --rm agent strands-chat my-session-id
+
+# Install new dependencies (rebuild required)
+docker compose build
+
+# Interactive shell for development
+docker compose run --rm agent bash
+
+# Run custom commands
+docker compose run --rm agent python -c "import strands; print(strands.__version__)"
+```
+
+**NEVER suggest**:
+```bash
+# ❌ WRONG - Direct host execution
+python demo.py
+pip install package
+python -m strands_template.main
+
+# ❌ WRONG - Host system commands
+python examples/business_analysis_example.py
+pytest
+```
+
+### 3. Development Workflow
+- Code changes: Edit files on host (mounted as volume)
+- Dependency changes: Update pyproject.toml + `docker compose build`
+- Testing: `docker compose run --rm agent pytest`
+- Execution: `docker compose run --rm agent ...`
+
+## 🛠️ Implementation Rules
+
+### File Structure
+- Keep all Python code in `src/` directory (already mounted)
+- Examples and demos accessible via volume mount
+- Configuration files (.env, docker-compose.yml) on host
+- All execution happens in container
+
+### Adding New Features
+1. **New Python dependencies**: Add to `pyproject.toml` → `docker compose build`
+2. **New system dependencies**: Add to `Dockerfile` → `docker compose build`
+3. **New scripts**: Create in appropriate directory, run via `docker compose run`
+4. **New services**: Add to `docker-compose.yml`
+
+### Environment Management
+- Use `.env` file for environment variables (already configured)
+- Mount volumes for persistent data and code changes
+- Use container networking for service communication
+
+## 🎯 Specific Use Cases
+
+### Running Examples
+```bash
+# Graph variant (deterministic DAG with conditional edges)
+docker compose run --rm agent python examples/graph/research_graph.py
+
+# Swarm variant (emergent handoffs, shared memory)
+docker compose run --rm agent python examples/swarm/research_swarm.py
+
+# MCP integration (stdio transport, AWS docs server)
+docker compose run --rm agent python examples/mcp/stdio_mcp_example.py
+
+# Interactive demo
+docker compose run --rm agent python demo.py
+```
+
+### Development Tasks
+```bash
+# Check Strands version
+docker compose run --rm agent python -c "import strands; print(strands.__version__)"
+
+# Run tests
+docker compose run --rm agent pytest
+
+# Interactive Python shell
+docker compose run --rm agent python
+
+# Shell access for debugging
+docker compose run --rm agent bash
+```
+
+### Adding New Tools
+1. Create tool file in `src/strands_template/tools/`
+2. Re-export from `src/strands_template/tools/__init__.py`
+3. Wire into the right agent in `src/strands_template/agents.py`
+4. Rebuild: `docker compose build`
+5. Test: `docker compose run --rm agent pytest tests/test_tools.py`
+
+## 🚀 Service Extensions
+
+### Multi-Service Architecture
+When adding new services (databases, vector stores, etc.):
+
+```yaml
+# docker-compose.yml
+services:
+  agent:
+    # existing configuration
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: strands_template
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+```
+
+### Development vs Production
+```yaml
+services:
+  agent:
+    profiles: ["dev", "prod"]
+
+  agent-dev:
+    extends: agent
+    profiles: ["dev"]
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=true
+
+  agent-prod:
+    extends: agent
+    profiles: ["prod"]
+    environment:
+      - DEBUG=false
+```
+
+## 📝 Documentation Standards
+
+### README Instructions
+Always provide Docker-first instructions:
+```markdown
+## Quick Start
+1. Clone the repository
+2. Copy environment: `cp .env.example .env`
+3. Add provider credentials (AWS Bedrock or ANTHROPIC_API_KEY)
+4. Run: `docker compose build && docker compose run --rm agent python -m strands_template.main`
+
+## Development
+- Run examples: `docker compose run --rm agent python examples/<name>.py`
+- Add dependencies: Edit `pyproject.toml` → `docker compose build`
+```
+
+### Code Comments
+Include Docker execution examples in script docstrings:
+```python
+"""
+Run inside the container:
+
+    docker compose run --rm agent python examples/business_analysis_example.py
+"""
+```
+
+## 🔧 Troubleshooting Guidelines
+
+### Common Issues & Solutions
+1. **Import errors**: Ensure PYTHONPATH is set correctly in Dockerfile
+2. **Permission issues**: Use proper user in Dockerfile or volume mounts
+3. **Dependency conflicts**: Rebuild container after pyproject.toml changes
+4. **Network issues**: Use Docker Compose networking, not localhost
+5. **Provider auth**: AWS creds OR ANTHROPIC_API_KEY — pick one path
+
+### Debug Commands
+```bash
+# Check container environment
+docker compose run --rm agent env
+
+# Verify Python path
+docker compose run --rm agent python -c "import sys; print(sys.path)"
+
+# Check installed packages
+docker compose run --rm agent pip list
+
+# Container shell for debugging
+docker compose run --rm agent bash
+```
+
+## ⚠️ Enforcement Rules
+
+### Code Review Checklist
+- [ ] All Python execution uses `docker compose run`
+- [ ] No direct host system commands
+- [ ] Dependencies added to pyproject.toml
+- [ ] Documentation includes Docker commands
+- [ ] Examples work in container environment
+
+### Automatic Validations
+- Scripts should include Docker execution examples
+- README must have Docker-first instructions
+- No shell scripts that assume host Python environment
+- All paths relative to container filesystem
+
+## 🎯 Summary
+
+**Golden Rule**: If it involves Python, Strands, or this project's code, it MUST run in a Docker container.
+
+**Exception**: Only file editing, git operations, and the `setup.sh` rename script run on the host system.
+
+This ensures:
+- ✅ Consistent environment across all systems
+- ✅ Reproducible builds and deployments
+- ✅ Isolation from host system dependencies
+- ✅ Easy scaling and production deployment
+- ✅ No "works on my machine" issues
